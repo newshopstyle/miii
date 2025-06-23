@@ -37,6 +37,7 @@ using NeptuneEvo.Table.Tasks.Player;
 using NeptuneEvo.VehicleData.LocalData;
 using NeptuneEvo.VehicleData.LocalData.Models;
 using NeptuneEvo.VehicleData.Models;
+using NeptuneEvo.Businesses.Factories;
 using JsonSerializer = System.Text.Json.JsonSerializer;
 
 namespace NeptuneEvo.Core
@@ -329,8 +330,34 @@ namespace NeptuneEvo.Core
                         List<Product> prodlist = JsonConvert.DeserializeObject<List<Product>>(Row["products"].ToString());
 
                         int id = Convert.ToInt32(Row["id"]);
-                        Business data = new Business(id, Row["owner"].ToString(), Convert.ToInt32(Row["sellprice"]), Convert.ToInt32(Row["type"]), prodlist, enterpoint, unloadpoint, bankmoney,
-                            Convert.ToInt32(Row["mafia"]), JsonConvert.DeserializeObject<List<Order>>(Row["orders"].ToString()), Convert.ToDouble(Row["tax"]));
+                        int bizType = Convert.ToInt32(Row["type"]);
+                        Business data;
+                        if (bizType == 16)
+                        {
+                            using MySqlCommand cmdF = new MySqlCommand($"SELECT * FROM business_factories WHERE bizid={id}");
+                            using DataTable resF = MySQL.QueryRead(cmdF);
+
+                            var materials = "{}";
+                            var products = "{}";
+                            var queue = "[]";
+
+                            if (resF != null && resF.Rows.Count > 0)
+                            {
+                                materials = resF.Rows[0]["materials"].ToString();
+                                products = resF.Rows[0]["products"].ToString();
+                                queue = resF.Rows[0]["queue"].ToString();
+                            }
+
+                            var factory = new FactoryBusiness(id, Row["owner"].ToString(), Convert.ToInt32(Row["sellprice"]), bizType, prodlist, enterpoint, unloadpoint, bankmoney,
+                                Convert.ToInt32(Row["mafia"]), JsonConvert.DeserializeObject<List<Order>>(Row["orders"].ToString()), Convert.ToDouble(Row["tax"]));
+                            factory.LoadData(materials, products, queue);
+                            data = factory;
+                        }
+                        else
+                        {
+                            data = new Business(id, Row["owner"].ToString(), Convert.ToInt32(Row["sellprice"]), bizType, prodlist, enterpoint, unloadpoint, bankmoney,
+                                Convert.ToInt32(Row["mafia"]), JsonConvert.DeserializeObject<List<Order>>(Row["orders"].ToString()), Convert.ToDouble(Row["tax"]));
+                        }
                         lastBizID = id;
 
                         UpdateBusProd(data);
@@ -1025,6 +1052,10 @@ namespace NeptuneEvo.Core
                     case 14:
                         _ProductsList.Add(new Product(45000, 20, 0, "Корм для животных", false));
                         break;
+                    case 16:
+                        _ProductsList.Add(new Product(100, 0, 0, "Материалы", false));
+                        _ProductsList.Add(new Product(200, 0, 0, "Продукция", false));
+                        break;
                 }
                 return _ProductsList;
             }
@@ -1081,6 +1112,15 @@ namespace NeptuneEvo.Core
                         }
                         sessionData.TempBizID = biz.ID;
                         CarRoom.enterCarroom(player);
+                        return;
+                    case 16:
+                        if (biz.Owner != player.Name)
+                        {
+                            Notify.Send(player, NotifyType.Error, NotifyPosition.BottomCenter, "Только владелец фабрики может ей управлять", 3000);
+                            return;
+                        }
+                        sessionData.TempBizID = biz.ID;
+                        OpenFactoryMenu(player);
                         return;
                     case 6:
                         sessionData.TempBizID = biz.ID;
@@ -3091,9 +3131,27 @@ namespace NeptuneEvo.Core
                 cmd.Parameters.AddWithValue("@val10", taxes);
                 MySQL.Query(cmd);
 
+                if (type == 16)
+                {
+                    using MySqlCommand cmdF = new MySqlCommand
+                    {
+                        CommandText = "INSERT INTO business_factories (bizid, materials, products, queue) VALUES (@b0,@b1,@b2,@b3)"
+                    };
+                    cmdF.Parameters.AddWithValue("@b0", lastBizID);
+                    cmdF.Parameters.AddWithValue("@b1", JsonConvert.SerializeObject(new Dictionary<string, int>()));
+                    cmdF.Parameters.AddWithValue("@b2", JsonConvert.SerializeObject(new Dictionary<string, int>()));
+                    cmdF.Parameters.AddWithValue("@b3", JsonConvert.SerializeObject(new List<ProductionJob>()));
+                    MySQL.Query(cmdF);
+                }
+
                 NAPI.Task.Run(() =>
                 {
-                    Business biz = new Business(lastBizID, "Государство", govPrice, type, products_list, pos, new Vector3(), bankID, -1, new List<Order>(), taxes);
+                    Business biz;
+                    if (type == 16)
+                        biz = new FactoryBusiness(lastBizID, "Государство", govPrice, type, products_list, pos, new Vector3(), bankID, -1, new List<Order>(), taxes);
+                    else
+                        biz = new Business(lastBizID, "Государство", govPrice, type, products_list, pos, new Vector3(), bankID, -1, new List<Order>(), taxes);
+
                     biz.UpdateLabel();
                     BizList.TryAdd(lastBizID, biz);
 
@@ -3936,6 +3994,28 @@ namespace NeptuneEvo.Core
                 "SniperRifle",
             },*/
         };
+
+        public static void OpenFactoryMenu(ExtPlayer player)
+        {
+            try
+            {
+                var sessionData = player.GetSessionData();
+                if (sessionData == null) return;
+                if (!player.IsCharacterData()) return;
+                if (sessionData.TempBizID == -1 || !BizList.ContainsKey(sessionData.TempBizID)) return;
+                if (BizList[sessionData.TempBizID] is not FactoryBusiness factory) return;
+
+                factory.ProcessQueue();
+                Trigger.ClientEvent(player, "client.factory.open",
+                    JsonConvert.SerializeObject(factory.MaterialsStorage),
+                    JsonConvert.SerializeObject(factory.ProductsStorage),
+                    JsonConvert.SerializeObject(factory.ProductionQueue));
+            }
+            catch (Exception e)
+            {
+                Log.Write($"OpenFactoryMenu Exception: {e.ToString()}");
+            }
+        }
         #endregion
 
         public static void changeOwner(string oldName, string newName)
@@ -3956,6 +4036,32 @@ namespace NeptuneEvo.Core
             catch (Exception e)
             {
                 Log.Write($"changeOwner NAPI.Task Exception: {e.ToString()}");
+            }
+        }
+
+        [RemoteEvent("server.factory.createOrder")]
+        public static void Event_FactoryCreateOrder(ExtPlayer player, string product, int amount)
+        {
+            try
+            {
+                var sessionData = player.GetSessionData();
+                if (sessionData == null) return;
+                var characterData = player.GetCharacterData();
+                if (characterData == null) return;
+                if (sessionData.TempBizID == -1 || !BizList.ContainsKey(sessionData.TempBizID)) return;
+
+                if (BizList[sessionData.TempBizID] is not FactoryBusiness factory) return;
+                if (factory.Owner != player.Name) return;
+
+                var materials = new Dictionary<string, int> { { "Материалы", amount } };
+                if (factory.TryStartProduction(product, amount, materials, TimeSpan.FromMinutes(5 * amount)))
+                    Notify.Send(player, NotifyType.Success, NotifyPosition.BottomCenter, "Производство запущено", 3000);
+                else
+                    Notify.Send(player, NotifyType.Error, NotifyPosition.BottomCenter, "Недостаточно материалов", 3000);
+            }
+            catch (Exception e)
+            {
+                Log.Write($"Event_FactoryCreateOrder Exception: {e.ToString()}");
             }
         }
     }
@@ -4148,6 +4254,16 @@ namespace NeptuneEvo.Core
                     .Set(b => b.Mafia, Mafia)
                     .Set(b => b.Orders, JsonConvert.SerializeObject(Orders))
                     .UpdateAsync();
+
+                if (Type == 16 && this is FactoryBusiness factory)
+                {
+                    await db.BusinessFactories
+                        .Where(f => f.Bizid == ID)
+                        .Set(f => f.Materials, factory.SerializeMaterials())
+                        .Set(f => f.Products, factory.SerializeProducts())
+                        .Set(f => f.Queue, factory.SerializeQueue())
+                        .UpdateAsync();
+                }
                 
             }
             catch (Exception e)

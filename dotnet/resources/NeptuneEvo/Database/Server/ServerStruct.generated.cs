@@ -35,7 +35,8 @@ namespace Database
 		public ITable<Bindcfgs>                Bindcfg                { get { return this.GetTable<Bindcfgs>(); } }
 		public ITable<Bonuscodes>              Bonuscodes             { get { return this.GetTable<Bonuscodes>(); } }
 		public ITable<Businesses>              Businesses             { get { return this.GetTable<Businesses>(); } }
-		public ITable<Businesshistories>       Businesshistory        { get { return this.GetTable<Businesshistories>(); } }
+                public ITable<Businesshistories>       Businesshistory        { get { return this.GetTable<Businesshistories>(); } }
+                public ITable<BusinessFactories>       BusinessFactories      { get { return this.GetTable<BusinessFactories>(); } }
 		public ITable<Characters>              Characters             { get { return this.GetTable<Characters>(); } }
 		public ITable<Chatcfgs>                Chatcfg                { get { return this.GetTable<Chatcfgs>(); } }
 		public ITable<Compensations>           Compensation           { get { return this.GetTable<Compensations>(); } }
@@ -303,16 +304,25 @@ namespace Database
 		[Column("tax"),            Nullable         ] public double? Tax         { get; set; } // double
 	}
 
-	[Table("businesshistory")]
-	public partial class Businesshistories
-	{
-		[Column("autoid"), PrimaryKey, Identity] public int      Autoid { get; set; } // int(11)
-		[Column("bizid"),  NotNull             ] public int      Bizid  { get; set; } // int(11)
-		[Column("date"),   NotNull             ] public DateTime Date   { get; set; } // datetime
-		[Column("uuid"),   NotNull             ] public int      Uuid   { get; set; } // int(11)
-		[Column("item"),   NotNull             ] public string   Item   { get; set; } // varchar(50)
-		[Column("price"),  NotNull             ] public int      Price  { get; set; } // int(11)
-	}
+        [Table("businesshistory")]
+        public partial class Businesshistories
+        {
+                [Column("autoid"), PrimaryKey, Identity] public int      Autoid { get; set; } // int(11)
+                [Column("bizid"),  NotNull             ] public int      Bizid  { get; set; } // int(11)
+                [Column("date"),   NotNull             ] public DateTime Date   { get; set; } // datetime
+                [Column("uuid"),   NotNull             ] public int      Uuid   { get; set; } // int(11)
+                [Column("item"),   NotNull             ] public string   Item   { get; set; } // varchar(50)
+                [Column("price"),  NotNull             ] public int      Price  { get; set; } // int(11)
+        }
+
+        [Table("business_factories")]
+        public partial class BusinessFactories
+        {
+                [Column("bizid"),     PrimaryKey, NotNull] public int    Bizid     { get; set; } // int(11)
+                [Column("materials"), NotNull    ] public string Materials { get; set; } // text
+                [Column("products"),  NotNull    ] public string Products  { get; set; } // text
+                [Column("queue"),     NotNull    ] public string Queue     { get; set; } // text
+        }
 
 	[Table("characters")]
 	public partial class Characters
@@ -1132,11 +1142,17 @@ namespace Database
 				t.Id == Id);
 		}
 
-		public static Businesshistories Find(this ITable<Businesshistories> table, int Autoid)
-		{
-			return table.FirstOrDefault(t =>
-				t.Autoid == Autoid);
-		}
+                public static Businesshistories Find(this ITable<Businesshistories> table, int Autoid)
+                {
+                        return table.FirstOrDefault(t =>
+                                t.Autoid == Autoid);
+                }
+
+                public static BusinessFactories Find(this ITable<BusinessFactories> table, int Bizid)
+                {
+                        return table.FirstOrDefault(t =>
+                                t.Bizid == Bizid);
+                }
 
 		public static Characters Find(this ITable<Characters> table, int Uuid)
 		{
