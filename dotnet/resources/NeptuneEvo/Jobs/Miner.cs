@@ -55,6 +55,58 @@ namespace NeptuneEvo.Jobs
             0 // Рубин
         };
 
+        // ключевые названия ресурсов для внутренних обращений
+        public static readonly Dictionary<int, string> OreKeys = new Dictionary<int, string>()
+        {
+            { 0, "Coal" },
+            { 1, "Iron" },
+            { 2, "Gold" },
+            { 3, "Sulfur" },
+            { 4, "Emerald" },
+            { 5, "Ruby" }
+        };
+
+        private static readonly Dictionary<string, int> OreKeyToIndex = new Dictionary<string, int>()
+        {
+            { "Coal", 0 },
+            { "Iron", 1 },
+            { "Gold", 2 },
+            { "Sulfur", 3 },
+            { "Emerald", 4 },
+            { "Ruby", 5 }
+        };
+
+        // Получить название руды по индексу
+        public static string GetOreKey(int index)
+        {
+            return OreKeys.ContainsKey(index) ? OreKeys[index] : string.Empty;
+        }
+
+        // Получить индекс руды по названию
+        public static int GetOreIndex(string key)
+        {
+            return OreKeyToIndex.ContainsKey(key) ? OreKeyToIndex[key] : -1;
+        }
+
+        // Текущее количество руды на заводском складе
+        public static List<int> GetPlantStockOres()
+        {
+            return new List<int>(PlantStockOres);
+        }
+
+        // Попытаться снять определённое количество руды с заводского склада
+        public static bool TryTakePlantStock(int index, int amount)
+        {
+            if (index < 0 || index >= PlantStockOres.Count)
+                return false;
+            if (amount <= 0 || PlantStockOres[index] < amount)
+                return false;
+
+            PlantStockOres[index] -= amount;
+            SaveMineStocks(2);
+            return true;
+        }
+
         public static ExtTextLabel MineStockLabel { get; set; } = null;
         public static ExtTextLabel PlantStockLabel { get; set; } = null;
         public static readonly Dictionary<int, int> OrePricePerUnit = new Dictionary<int, int>()
@@ -866,12 +918,12 @@ namespace NeptuneEvo.Jobs
                         await using var db = new ServerBD("MainDB");
                         await db.MineStocks
                             .Where(v => v.Id == mine_index)
-                            .Set(v => v.Coal, mine_index == 1 ? MineStockOres[0] : 0)
-                            .Set(v => v.Iron, mine_index == 1 ? MineStockOres[1] : 0)
-                            .Set(v => v.Gold, mine_index == 1 ? MineStockOres[2] : 0)
-                            .Set(v => v.Sulfur, mine_index == 1 ? MineStockOres[3] : 0)
-                            .Set(v => v.Emerald, mine_index == 1 ? MineStockOres[4] : 0)
-                            .Set(v => v.Ruby, mine_index == 1 ? MineStockOres[5] : 0)
+                            .Set(v => v.Coal, mine_index == 1 ? MineStockOres[0] : PlantStockOres[0])
+                            .Set(v => v.Iron, mine_index == 1 ? MineStockOres[1] : PlantStockOres[1])
+                            .Set(v => v.Gold, mine_index == 1 ? MineStockOres[2] : PlantStockOres[2])
+                            .Set(v => v.Sulfur, mine_index == 1 ? MineStockOres[3] : PlantStockOres[3])
+                            .Set(v => v.Emerald, mine_index == 1 ? MineStockOres[4] : PlantStockOres[4])
+                            .Set(v => v.Ruby, mine_index == 1 ? MineStockOres[5] : PlantStockOres[5])
                             .UpdateAsync();
                     }
                     catch (Exception e)
@@ -888,6 +940,16 @@ namespace NeptuneEvo.Jobs
                         $"Железной руды {MineStockOres[1]} ед.\n" +
                         $"Серной руды {MineStockOres[3]} ед.\n" +
                         $"Драгоценных камней {MineStockOres[2] + MineStockOres[4] + MineStockOres[5]} ед."
+                    );
+                }
+                else if (mine_index == 2 && PlantStockLabel != null)
+                {
+                    PlantStockLabel.Text = Main.StringToU16(
+                        $"~y~Состояние хранилища:\n\n" +
+                        $"Ископаемого угля {PlantStockOres[0]} ед.\n" +
+                        $"Железной руды {PlantStockOres[1]} ед.\n" +
+                        $"Золотой руды {PlantStockOres[2]} ед.\n" +
+                        $"Драгоценных камней {PlantStockOres[4] + PlantStockOres[5]} ед."
                     );
                 }
             }
