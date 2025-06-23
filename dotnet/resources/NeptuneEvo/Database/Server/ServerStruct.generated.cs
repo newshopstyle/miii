@@ -721,17 +721,26 @@ namespace Database
 		[Column("player"), NotNull] public int  Player { get; set; } // int(11)
 	}
 
-	[Table("mine_stocks")]
-	public partial class MineStocks
-	{
-		[Column("id"),      PrimaryKey, Identity] public int Id      { get; set; } // int(11)
-		[Column("coal"),    NotNull             ] public int Coal    { get; set; } // int(11)
-		[Column("iron"),    NotNull             ] public int Iron    { get; set; } // int(11)
-		[Column("gold"),    NotNull             ] public int Gold    { get; set; } // int(11)
-		[Column("sulfur"),  NotNull             ] public int Sulfur  { get; set; } // int(11)
-		[Column("emerald"), NotNull             ] public int Emerald { get; set; } // int(11)
-		[Column("ruby"),    NotNull             ] public int Ruby    { get; set; } // int(11)
-	}
+        [Table("mine_stocks")]
+        public partial class MineStocks
+        {
+                [Column("id"),      PrimaryKey, Identity] public int Id      { get; set; } // int(11)
+                [Column("coal"),    NotNull             ] public int Coal    { get; set; } // int(11)
+                [Column("iron"),    NotNull             ] public int Iron    { get; set; } // int(11)
+                [Column("gold"),    NotNull             ] public int Gold    { get; set; } // int(11)
+                [Column("sulfur"),  NotNull             ] public int Sulfur  { get; set; } // int(11)
+                [Column("emerald"), NotNull             ] public int Emerald { get; set; } // int(11)
+                [Column("ruby"),    NotNull             ] public int Ruby    { get; set; } // int(11)
+        }
+
+        [Table("factory_data")]
+        public partial class FactoryDatas
+        {
+                [Column("id"),        PrimaryKey,  NotNull] public int    Id        { get; set; } // int(11)
+                [Column("materials"), NotNull] public string Materials { get; set; } // text
+                [Column("products"),  NotNull] public string Products  { get; set; } // text
+                [Column("queue"),     NotNull] public string Queue     { get; set; } // text
+        }
 
 	[Table("money")]
 	public partial class Moneys
@@ -1240,15 +1249,21 @@ namespace Database
 				t.AutoId == AutoId);
 		}
 
-		public static MineStocks Find(this ITable<MineStocks> table, int Id)
-		{
-			return table.FirstOrDefault(t =>
-				t.Id == Id);
-		}
+                public static MineStocks Find(this ITable<MineStocks> table, int Id)
+                {
+                        return table.FirstOrDefault(t =>
+                                t.Id == Id);
+                }
 
-		public static Moneys Find(this ITable<Moneys> table, int Id)
-		{
-			return table.FirstOrDefault(t =>
+                public static FactoryDatas Find(this ITable<FactoryDatas> table, int Id)
+                {
+                        return table.FirstOrDefault(t =>
+                                t.Id == Id);
+                }
+
+                public static Moneys Find(this ITable<Moneys> table, int Id)
+                {
+                        return table.FirstOrDefault(t =>
 				t.Id == Id);
 		}
 

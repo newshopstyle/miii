@@ -329,8 +329,23 @@ namespace NeptuneEvo.Core
                         List<Product> prodlist = JsonConvert.DeserializeObject<List<Product>>(Row["products"].ToString());
 
                         int id = Convert.ToInt32(Row["id"]);
-                        Business data = new Business(id, Row["owner"].ToString(), Convert.ToInt32(Row["sellprice"]), Convert.ToInt32(Row["type"]), prodlist, enterpoint, unloadpoint, bankmoney,
-                            Convert.ToInt32(Row["mafia"]), JsonConvert.DeserializeObject<List<Order>>(Row["orders"].ToString()), Convert.ToDouble(Row["tax"]));
+                        Business data;
+                        int type = Convert.ToInt32(Row["type"]);
+                        if (type == 16)
+                        {
+                            using var dbMain = new ServerBD("MainDB");
+                            var factoryData = dbMain.FactoryDatas.FirstOrDefault(f => f.Id == id);
+                            var f = new Businesses.Factories.FactoryBusiness(id, Row["owner"].ToString(), Convert.ToInt32(Row["sellprice"]), type, prodlist, enterpoint, unloadpoint, bankmoney,
+                                Convert.ToInt32(Row["mafia"]), JsonConvert.DeserializeObject<List<Order>>(Row["orders"].ToString()), Convert.ToDouble(Row["tax"]));
+                            if (factoryData != null)
+                                f.LoadState(factoryData.Materials, factoryData.Products, factoryData.Queue);
+                            data = f;
+                        }
+                        else
+                        {
+                            data = new Business(id, Row["owner"].ToString(), Convert.ToInt32(Row["sellprice"]), type, prodlist, enterpoint, unloadpoint, bankmoney,
+                                Convert.ToInt32(Row["mafia"]), JsonConvert.DeserializeObject<List<Order>>(Row["orders"].ToString()), Convert.ToDouble(Row["tax"]));
+                        }
                         lastBizID = id;
 
                         UpdateBusProd(data);
@@ -1025,6 +1040,9 @@ namespace NeptuneEvo.Core
                     case 14:
                         _ProductsList.Add(new Product(45000, 20, 0, "Корм для животных", false));
                         break;
+                    case 16:
+                        // фабрика не продает товары напрямую
+                        break;
                 }
                 return _ProductsList;
             }
@@ -1215,8 +1233,12 @@ namespace NeptuneEvo.Core
                         sessionData.TempBizID = biz.ID;
                         enterPetShop(player, biz.Products[0].Name);
                         return;
+                    case 16:
+                        sessionData.TempBizID = biz.ID;
+                        OpenFactoryMenu(player);
+                        return;
                     default:
-                        // Not supposed to end up here. 
+                        // Not supposed to end up here.
                         break;
                 }
             }
@@ -3734,6 +3756,22 @@ namespace NeptuneEvo.Core
             catch (Exception e)
             {
                 Log.Write($"OpenGunShopMenu Exception: {e.ToString()}");
+            }
+        }
+
+        public static void OpenFactoryMenu(ExtPlayer player)
+        {
+            try
+            {
+                if (!player.IsCharacterData()) return;
+                var sessionData = player.GetSessionData();
+                if (sessionData == null) return;
+                if (sessionData.TempBizID == -1 || !BizList.ContainsKey(sessionData.TempBizID)) return;
+                Notify.Send(player, NotifyType.Info, NotifyPosition.BottomCenter, "Фабрика открыта", 3000);
+            }
+            catch (Exception e)
+            {
+                Log.Write($"OpenFactoryMenu Exception: {e.ToString()}");
             }
         }
 

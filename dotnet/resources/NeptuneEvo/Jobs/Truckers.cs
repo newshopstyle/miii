@@ -262,11 +262,20 @@ namespace NeptuneEvo.Jobs
                     }
                 }
 
-                var product = biz.Products.FirstOrDefault(p => p.Name == bizOrder.Name);
-                if (product != null) 
+                if (biz.Type == 16 && biz is NeptuneEvo.Businesses.Factories.FactoryBusiness factory)
                 {
-                    product.Ordered = false;
-                    product.Lefts += bizOrder.Amount;
+                    if (!factory.MaterialsStorage.ContainsKey(bizOrder.Name))
+                        factory.MaterialsStorage[bizOrder.Name] = 0;
+                    factory.MaterialsStorage[bizOrder.Name] += bizOrder.Amount;
+                }
+                else
+                {
+                    var product = biz.Products.FirstOrDefault(p => p.Name == bizOrder.Name);
+                    if (product != null)
+                    {
+                        product.Ordered = false;
+                        product.Lefts += bizOrder.Amount;
+                    }
                 }
                 
                 biz.Orders.Remove(bizOrder);
