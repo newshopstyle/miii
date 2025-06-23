@@ -1,4 +1,6 @@
-﻿namespace NeptuneEvo.Database.Models
+﻿using NeptuneEvo.Businesses.Factories;
+
+namespace NeptuneEvo.Database.Models
 {
     public class Repository
     {
@@ -12,6 +14,7 @@
             Phone.Start();
             Money.Start();
             Members.Start();
+            Factory.Start();
         }
     }
 }

@@ -217,6 +217,15 @@ namespace NeptuneEvo.Players.Phone.Property.Businesses
             product.Ordered = true;
             biz.Orders.Add(order);
             BusinessManager.Orders.TryAdd(order.UID, biz.ID);
+
+            if (biz.Type == 6)
+            {
+                var factory = BusinessManager.BizList.Values.FirstOrDefault(b => b.Type == 16) as NeptuneEvo.Businesses.Factories.FactoryBusiness;
+                if (factory != null)
+                {
+                    factory.StartProduction(order.Name, order.Amount, new Dictionary<string, int>(), TimeSpan.FromMinutes(5));
+                }
+            }
             
             Trigger.ClientEvent(player, "client.phone.business.cAddOrder", order.UID, order.Name, order.Amount);
             

@@ -57,6 +57,21 @@ namespace NeptuneEvo.Jobs
 
         public static ExtTextLabel MineStockLabel { get; set; } = null;
         public static ExtTextLabel PlantStockLabel { get; set; } = null;
+
+        public static int GetPlantOre(int index)
+        {
+            if (index < 0 || index >= PlantStockOres.Count) return 0;
+            return PlantStockOres[index];
+        }
+
+        public static bool TakePlantOre(int index, int amount)
+        {
+            if (index < 0 || index >= PlantStockOres.Count) return false;
+            if (PlantStockOres[index] < amount) return false;
+            PlantStockOres[index] -= amount;
+            SaveMineStocks(2);
+            return true;
+        }
         public static readonly Dictionary<int, int> OrePricePerUnit = new Dictionary<int, int>()
         {
             { 0, 10 },   // Уголь — 10$
