@@ -17,6 +17,7 @@ using NeptuneEvo.Jobs.Models;
 using NeptuneEvo.Quests;
 using NeptuneEvo.VehicleData.LocalData;
 using NeptuneEvo.VehicleData.LocalData.Models;
+using NeptuneEvo.Businesses.Factories;
 
 namespace NeptuneEvo.Jobs
 {
@@ -262,11 +263,21 @@ namespace NeptuneEvo.Jobs
                     }
                 }
 
-                var product = biz.Products.FirstOrDefault(p => p.Name == bizOrder.Name);
-                if (product != null) 
+                if (biz is Businesses.Factories.FactoryBusiness factoryBiz)
                 {
-                    product.Ordered = false;
-                    product.Lefts += bizOrder.Amount;
+                    if (!factoryBiz.MaterialsStorage.ContainsKey(bizOrder.Name))
+                        factoryBiz.MaterialsStorage[bizOrder.Name] = bizOrder.Amount;
+                    else
+                        factoryBiz.MaterialsStorage[bizOrder.Name] += bizOrder.Amount;
+                }
+                else
+                {
+                    var product = biz.Products.FirstOrDefault(p => p.Name == bizOrder.Name);
+                    if (product != null)
+                    {
+                        product.Ordered = false;
+                        product.Lefts += bizOrder.Amount;
+                    }
                 }
                 
                 biz.Orders.Remove(bizOrder);
